@@ -1,12 +1,67 @@
-import React from 'react';
-import logo from './logo.svg';
+import React, {useState, useEffect} from 'react';
+import {Router, navigate} from '@reach/router';
+
 import './App.css';
+import Navigation from './components/Navigation';
+import Login from './components/Login';
+import Register from './components/Register';
+import Protected from './components/Protected';
+import Content from './components/Content';
+
+export const UserContext = React.createContext([]);
 
 function App() {
+  const [user, setUser] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  const logOutCallback = async () => {
+    await fetch('http://localhost:4000/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-type': 'application/json',
+        'authorization': `Bearer ${document.cookie.refreshToken}`
+      }
+    })
+    setUser({});
+    navigate('/');
+  }
+  
+  //first thing, get a new accessToken if a refreshTOken exists
+  useEffect(() => {
+    async function checkRefreshToken() {
+      const result = await (await fetch('http://localhost:4000/refresh_token', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })).json();
+      setUser({
+        accessToken: result.accessToken
+      });
+      setLoading(false);
+    }
+    checkRefreshToken();
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>
+  }
+
+
   return (
-    <div className="App">
-      App
-    </div>
+    <UserContext.Provider value={[user, setUser]}>
+      <div className="app">
+        <Navigation logOutCallback={logOutCallback} />
+        <Router id="router">
+          <Login path="login" />
+          <Register path="register" />
+          <Protected path="protected" />
+          <Content path="/" />
+        </Router>
+      </div>
+    </UserContext.Provider>
   );
 }
 
